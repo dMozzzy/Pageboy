@@ -12,8 +12,8 @@ internal class PatchedPageViewController: UIPageViewController {
 
     private var isSettingViewControllers = false
 
-    private var controllersToUpdate: [UIViewController]? = nil
-    private var completionToRun: ((Bool) -> Void)? = nil
+    private var controllersToUpdate: [UIViewController]?
+    private var completionToRun: ((Bool) -> Void)?
     private var directionToRun: UIPageViewController.NavigationDirection = .forward
 
     override func setViewControllers(_ viewControllers: [UIViewController]?, direction: UIPageViewController.NavigationDirection, animated: Bool, completion: ((Bool) -> Void)? = nil) {
@@ -25,24 +25,28 @@ internal class PatchedPageViewController: UIPageViewController {
           return
         }
         isSettingViewControllers = true
-        super.setViewControllers(viewControllers, direction: direction, animated: animated) { (isFinished) in
+        DispatchQueue.main.async {
+          super.setViewControllers(viewControllers, direction: direction, animated: animated) { (isFinished) in
             if isFinished && animated {
-                DispatchQueue.main.async {
-                    super.setViewControllers(viewControllers, direction: direction, animated: false, completion: { _ in
-                        self.isSettingViewControllers = false
-                        self.runUpdateOnDemandIfNecessery()
-                    })
-                }
+              DispatchQueue.main.async {
+                super.setViewControllers(viewControllers, direction: direction, animated: false, completion: { _ in
+                  self.isSettingViewControllers = false
+                  self.runUpdateOnDemandIfNecessery()
+                })
+              }
             } else {
-                self.isSettingViewControllers = false
-                self.runUpdateOnDemandIfNecessery()
+              self.isSettingViewControllers = false
+              self.runUpdateOnDemandIfNecessery()
             }
             completion?(isFinished)
+          }
         }
     }
 
     private func runUpdateOnDemandIfNecessery() {
-        guard controllersToUpdate != nil else { return }
+        guard controllersToUpdate != nil else {
+          return
+        }
         setViewControllers(controllersToUpdate, direction: directionToRun, animated: false) { [weak self] result in
             self?.completionToRun?(result)
             self?.controllersToUpdate = nil
